@@ -199,6 +199,7 @@ export class AuthController {
         profile: { include: { institution: true } },
         bookmarks: { select: { publicationId: true } },
         following: { select: { followingId: true } },
+        wallet: true,
       },
     });
 
@@ -218,6 +219,7 @@ export class AuthController {
         role: user.role,
         isVerified: user.isVerified,
         profile: user.profile,
+        wallet: user.wallet,
         bookmarkedPublicationIds: user.bookmarks.map((b) => b.publicationId),
         followingIds: user.following.map((f) => f.followingId),
       },
