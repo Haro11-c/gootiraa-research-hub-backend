@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+
+# Database files
+*.db
+*.db-journal
+dev.db
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Uploaded manuscripts (keep folder via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,366 @@
+// Gootiraa Research Hub — Prisma Schema
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("USER") // USER, RESEARCHER, EDITOR, MODERATOR, ADMIN
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  profile               UserProfile?
+  publications          Publication[]          @relation("UserSubmissions")
+  bookmarks             Bookmark[]
+  savedSearches         SavedSearch[]
+  questions             Question[]
+  answers               Answer[]
+  comments              Comment[]
+  reactions             Reaction[]
+  articles              EditorialArticle[]     @relation("ArticleAuthor")
+  sentCollaborationReqs CollaborationRequest[] @relation("SentCollab")
+  recvCollaborationReqs CollaborationRequest[] @relation("RecvCollab")
+  projectMemberships    ProjectMember[]
+  followedBy            Follow[]               @relation("Following")
+  following             Follow[]               @relation("Follower")
+  reportsFiled          Report[]               @relation("FiledReports")
+  moderationActions     ModerationAction[]
+  auditLogs             AuditLog[]
+}
+
+model UserProfile {
+  id                 String       @id @default(uuid())
+  userId             String       @unique
+  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String
+  academicTitle      String?      // e.g. "Associate Professor", "Ph.D. Candidate"
+  bio                String?
+  institutionId      String?
+  institution        Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+  department         String?
+  country            String?      @default("Ethiopia")
+  orcidId            String?
+  avatarUrl          String?
+  researchInterests  String?      // Comma-separated or JSON
+  verifiedStatus     String       @default("UNVERIFIED") // UNVERIFIED, PENDING, VERIFIED
+  publicationsCount  Int          @default(0)
+  citationCount      Int          @default(0)
+  viewsCount         Int          @default(0)
+  followersCount     Int          @default(0)
+  website            String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Institution {
+  id          String        @id @default(uuid())
+  name        String        @unique
+  country     String        @default("Ethiopia")
+  city        String?
+  type        String        @default("UNIVERSITY") // UNIVERSITY, RESEARCH_INSTITUTE, GOVERNMENT, NGO
+  rorId       String?       @unique
+  website     String?
+  description String?
+  logoUrl     String?
+  profiles    UserProfile[]
+  publications Publication[]
+  createdAt   DateTime      @default(now())
+}
+
+model Publication {
+  id              String   @id @default(uuid())
+  title           String
+  abstract        String
+  doi             String?  @unique
+  arxivId         String?
+  documentType    String   @default("PREPRINT") // PEER_REVIEWED_ARTICLE, PREPRINT, THESIS, WORKING_PAPER, CONFERENCE_PAPER, DATASET
+  reviewStatus    String   @default("PREPRINT") // PEER_REVIEWED, PREPRINT, UNKNOWN, UNDER_REVIEW
+  publicationYear Int
+  venue           String?  // Journal or Conference name
+  publisher       String?
+  license         String   @default("CC-BY-4.0")
+  isOpenAccess    Boolean  @default(true)
+  region          String   @default("GLOBAL") // GLOBAL, ETHIOPIA, PAN_AFRICA
+  status          String   @default("PUBLISHED") // DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, PUBLISHED, WITHDRAWN
+  moderationNote  String?
+  isVerified      Boolean  @default(false)
+
+  // Submitter
+  submitterId     String?
+  submitter       User?    @relation("UserSubmissions", fields: [submitterId], references: [id], onDelete: SetNull)
+
+  // Institution Affiliation
+  institutionId   String?
+  institution     Institution? @relation(fields: [institutionId], references: [id], onDelete: SetNull)
+
+  // Metadata details
+  authorsJson     String   // JSON string of author names and affiliations
+  keywordsJson    String   // JSON string of keywords
+  referencesJson  String?  // JSON string of references cited
+  metricsViews    Int      @default(0)
+  metricsDownloads Int     @default(0)
+  metricsCitations Int     @default(0)
+  metricsBookmarks Int     @default(0)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  files           PublicationFile[]
+  topics          PublicationTopic[]
+  bookmarks       Bookmark[]
+  questions       Question[]
+  citations       CitationSnapshot[]
+}
+
+model PublicationFile {
+  id            String      @id @default(uuid())
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  filename      String
+  storageKey    String      @unique
+  mimeType      String      @default("application/pdf")
+  fileSize      Int
+  checksumSha256 String
+  isPublic      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+}
+
+model Topic {
+  id           String             @id @default(uuid())
+  name         String             @unique
+  slug         String             @unique
+  description  String?
+  publications PublicationTopic[]
+}
+
+model PublicationTopic {
+  id            String      @id @default(uuid())
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  topicId       String
+  topic         Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([publicationId, topicId])
+}
+
+model Bookmark {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, publicationId])
+}
+
+model SavedSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  query     String
+  filters   String?  // JSON string of applied filters
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model ResearchProject {
+  id          String          @id @default(uuid())
+  title       String
+  description String
+  status      String          @default("ACTIVE") // ACTIVE, COMPLETED, ARCHIVED
+  leadUserId  String
+  members     ProjectMember[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ProjectMember {
+  id        String          @id @default(uuid())
+  projectId String
+  project   ResearchProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String          @default("COLLABORATOR") // LEAD, COLLABORATOR, ADVISOR
+  joinedAt  DateTime        @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model CollaborationRequest {
+  id          String   @id @default(uuid())
+  senderId    String
+  sender      User     @relation("SentCollab", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("RecvCollab", fields: [receiverId], references: [id], onDelete: Cascade)
+  subject     String
+  message     String
+  status      String   @default("PENDING") // PENDING, ACCEPTED, DECLINED
+  createdAt   DateTime @default(now())
+}
+
+model Question {
+  id            String       @id @default(uuid())
+  publicationId String?
+  publication   Publication? @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title         String
+  content       String
+  upvotes       Int          @default(0)
+  answers       Answer[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Answer {
+  id         String    @id @default(uuid())
+  questionId String
+  question   Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content    String
+  isAccepted Boolean   @default(false)
+  upvotes    Int       @default(0)
+  comments   Comment[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  answerId  String?
+  answer    Answer?  @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+}
+
+model Reaction {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType String   // QUESTION, ANSWER
+  targetId   String
+  type       String   @default("UPVOTE") // UPVOTE, DOWNVOTE
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, targetType, targetId])
+}
+
+model EditorialCategory {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  slug        String             @unique
+  description String?
+  articles    EditorialArticle[]
+}
+
+model EditorialArticle {
+  id            String             @id @default(uuid())
+  title         String
+  slug          String             @unique
+  summary       String
+  content       String
+  coverImageUrl String?
+  articleType   String             @default("NEWS") // NEWS, EXPLAINER, INVESTIGATION, FACT_CHECK, INTERVIEW
+  status        String             @default("PUBLISHED") // DRAFT, REVIEW, SCHEDULED, PUBLISHED, ARCHIVED
+  authorId      String
+  author        User               @relation("ArticleAuthor", fields: [authorId], references: [id])
+  categoryId    String
+  category      EditorialCategory  @relation(fields: [categoryId], references: [id])
+  tagsJson      String             @default("[]") // JSON string of tags
+  sourcesJson   String             @default("[]") // JSON string of scientific source links
+  publishedAt   DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  factCheck     FactCheck?
+  corrections   CorrectionRecord[]
+}
+
+model FactCheck {
+  id              String           @id @default(uuid())
+  articleId       String           @unique
+  article         EditorialArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  claim           String
+  claimant        String           // Person, media, or organization making the claim
+  verdict         String           // TRUE, MOSTLY_TRUE, MIXED, MISLEADING, FALSE, UNPROVEN
+  evidenceSummary String
+  academicSources String           // JSON array of verified papers or data sources
+}
+
+model CorrectionRecord {
+  id             String           @id @default(uuid())
+  articleId      String
+  article        EditorialArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  correctionDate DateTime         @default(now())
+  explanation    String
+  previousText   String?
+  updatedText    String?
+}
+
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  reporter   User     @relation("FiledReports", fields: [reporterId], references: [id])
+  targetType String   // PUBLICATION, COMMENT, USER, COPYRIGHT
+  targetId   String
+  reason     String
+  status     String   @default("OPEN") // OPEN, IN_REVIEW, RESOLVED, DISMISSED
+  resolution String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ModerationAction {
+  id           String   @id @default(uuid())
+  moderatorId  String
+  moderator    User     @relation(fields: [moderatorId], references: [id])
+  targetType   String
+  targetId     String
+  action       String   // APPROVED, REJECTED, TAKEDOWN, WARNED, BANNED
+  notes        String
+  timestamp    DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // AUTH_LOGIN, PUB_SUBMIT, PUB_REVIEW, ROLE_CHANGE, TAKEDOWN, ARTICLE_PUBLISH
+  entityType String   // USER, PUBLICATION, ARTICLE, REPORT
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?
+  detailsJson String? // JSON metadata
+  timestamp  DateTime @default(now())
+}
+
+model CitationSnapshot {
+  id            String      @id @default(uuid())
+  publicationId String
+  publication   Publication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  source        String      // CROSSREF, OPENALEX, INTERNAL
+  count         Int
+  retrievedAt   DateTime    @default(now())
+}
