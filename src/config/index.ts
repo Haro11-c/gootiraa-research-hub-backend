@@ -3,6 +3,10 @@ import path from 'path';
 
 dotenv.config();
 
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:./dev.db';
+}
+
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '5000', 10),
@@ -11,7 +15,7 @@ export const config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   cors: {
-    origins: (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(','),
+    origins: (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173,https://gootiraa-research-hub.vercel.app').split(','),
   },
   storage: {
     uploadDir: path.resolve(process.env.UPLOAD_DIR || './uploads'),

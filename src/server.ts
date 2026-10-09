@@ -1,3 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'file:./dev.db';
+}
+
 import { createApp } from './app';
 import { config } from './config';
 import { connectDb, prisma } from './db/prisma';

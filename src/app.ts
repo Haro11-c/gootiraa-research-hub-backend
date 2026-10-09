@@ -29,7 +29,13 @@ export const createApp = () => {
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || config.cors.origins.includes(origin) || origin.startsWith('http://localhost:')) {
+        if (
+          !origin ||
+          config.cors.origins.includes('*') ||
+          config.cors.origins.includes(origin) ||
+          origin.startsWith('http://localhost:') ||
+          origin.includes('vercel.app')
+        ) {
           callback(null, true);
         } else {
           callback(new Error('Blocked by CORS policy'));
