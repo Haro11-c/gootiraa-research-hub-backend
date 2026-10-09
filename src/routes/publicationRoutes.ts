@@ -6,6 +6,7 @@ import { uploadMiddleware } from '../middleware/upload';
 const router = Router();
 
 router.get('/', publicationController.search);
+router.get('/stats', publicationController.getStats);
 router.get('/:id', publicationController.getById);
 router.post('/', authenticateToken, requireAuth, uploadMiddleware.single('file'), publicationController.create);
 router.get('/:id/export/:format', publicationController.exportCitation);

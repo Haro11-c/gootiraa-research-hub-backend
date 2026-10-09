@@ -206,6 +206,7 @@ export class AdminService {
         include: {
           submitter: { select: { id: true, email: true, profile: true } },
           files: true,
+          institution: true,
         },
       }),
     ]);
@@ -221,7 +222,7 @@ export class AdminService {
   }
 
   async reviewSubmission(moderatorId: string, submissionId: string, action: 'APPROVED' | 'REJECTED', notes: string) {
-    const status = action === 'APPROVED' ? 'PUBLISHED' : 'WITHDRAWN';
+    const status = action === 'APPROVED' ? 'PUBLISHED' : 'REJECTED';
 
     const publication = await prisma.publication.update({
       where: { id: submissionId },

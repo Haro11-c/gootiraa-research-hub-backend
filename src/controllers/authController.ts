@@ -264,11 +264,6 @@ export class AuthController {
             id: true,
             email: true,
             role: true,
-            publications: {
-              where: { status: 'PUBLISHED' },
-              orderBy: { publicationYear: 'desc' },
-              take: 10,
-            },
           },
         },
       },
@@ -282,11 +277,64 @@ export class AuthController {
       return;
     }
 
+    // Check if requester is the profile owner
+    let requesterUserId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded: any = jwt.verify(authHeader.split(' ')[1], config.jwt.secret);
+        requesterUserId = decoded.userId;
+      } catch {}
+    }
+
+    const isOwner = requesterUserId === profile.userId;
+
+    // Fetch publications: if owner, fetch ALL (including SUBMITTED, UNDER_REVIEW, REJECTED)
+    // if public visitor, only fetch PUBLISHED
+    const publications = await prisma.publication.findMany({
+      where: {
+        submitterId: profile.userId,
+        ...(isOwner ? {} : { status: 'PUBLISHED' }),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        files: { select: { id: true, filename: true, fileSize: true, mimeType: true } },
+      },
+    });
+
+    // Calculate Platform Rankings across all scholars
+    const [higherCitations, higherPubs, higherViews, totalScholars] = await Promise.all([
+      prisma.userProfile.count({ where: { citationCount: { gt: profile.citationCount } } }),
+      prisma.userProfile.count({ where: { publicationsCount: { gt: profile.publicationsCount } } }),
+      prisma.userProfile.count({ where: { viewsCount: { gt: profile.viewsCount } } }),
+      prisma.userProfile.count(),
+    ]);
+
+    const rankCitations = higherCitations + 1;
+    const rankPublications = higherPubs + 1;
+    const rankViews = higherViews + 1;
+    const percentile = Math.max(1, Math.min(100, Math.round((rankCitations / (totalScholars || 1)) * 100)));
+
+    let impactTier = 'Emerging Researcher';
+    if (profile.citationCount >= 1000 || rankCitations === 1) impactTier = 'Distinguished Scholar (Top 1%)';
+    else if (profile.citationCount >= 100 || rankCitations <= 5) impactTier = 'Senior Researcher (Top 5%)';
+    else if (profile.citationCount >= 20 || rankCitations <= 15) impactTier = 'Established Scholar (Top 15%)';
+    else if (profile.publicationsCount >= 1) impactTier = 'Active Research Scholar';
+
     res.json({
       success: true,
       data: {
         ...profile,
-        publications: profile.user.publications.map((p) => ({
+        isOwner,
+        rankings: {
+          rankCitations,
+          rankPublications,
+          rankViews,
+          totalScholars,
+          percentile,
+          impactTier,
+        },
+        publications: publications.map((p) => ({
           ...p,
           authors: JSON.parse(p.authorsJson || '[]'),
           keywords: JSON.parse(p.keywordsJson || '[]'),
