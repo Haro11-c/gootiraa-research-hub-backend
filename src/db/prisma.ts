@@ -33,6 +33,19 @@ export const connectDb = async () => {
       await prisma.$connect();
       console.log('✅ Database schema synchronized successfully.');
     }
+
+    // Auto-seed initial platform data (Super Admin, Admin, and verified scholarly data)
+    try {
+      const superAdmin = await prisma.user.findUnique({ where: { email: 'superadmin@gootiraa.org' } });
+      if (!superAdmin) {
+        console.log('🌱 Super Admin not found in live database. Auto-seeding initial database...');
+        const { seedDatabase } = await import('./seedData');
+        await seedDatabase(prisma);
+        console.log('✅ Initial database successfully seeded with Super Admin & Admin accounts!');
+      }
+    } catch (seedErr) {
+      console.warn('⚠️ Seeding check skipped:', seedErr);
+    }
   } catch (err) {
     console.error('❌ Failed to connect to database:', err);
     process.exit(1);

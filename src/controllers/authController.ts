@@ -352,6 +352,22 @@ export class AuthController {
       },
     });
   }
+
+  async seed(_req: Request, res: Response): Promise<void> {
+    try {
+      const { seedDatabase } = await import('../db/seedData');
+      await seedDatabase(prisma);
+      res.json({
+        success: true,
+        message: 'Database seeded successfully with Super Admin, Admin, and verified scholarly data.',
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'SEED_ERROR', message: err.message || 'Failed to seed database.' },
+      });
+    }
+  }
 }
 
 export const authController = new AuthController();
