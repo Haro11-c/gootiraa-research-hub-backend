@@ -34,6 +34,8 @@ model User {
   reportsFiled          Report[]               @relation("FiledReports")
   moderationActions     ModerationAction[]
   auditLogs             AuditLog[]
+  wallet                Wallet?
+  withdrawalRequests    WithdrawalRequest[]
 }
 
 model UserProfile {
@@ -364,3 +366,66 @@ model CitationSnapshot {
   count         Int
   retrievedAt   DateTime    @default(now())
 }
+
+model Wallet {
+  id                    String              @id @default(uuid())
+  userId                String              @unique
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balanceCredits        Int                 @default(0) // 1 Credit = 1 ETB (or 100 Credits = $1 USD)
+  totalEarnedCredits    Int                 @default(0)
+  totalWithdrawnCredits Int                 @default(0)
+  payoutChannel         String?             // TELEBIRR, CBE_BANK, CHAPA, BANK_WIRE
+  payoutAccountNumber   String?
+  payoutAccountName     String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  transactions          WalletTransaction[]
+}
+
+model WalletTransaction {
+  id            String   @id @default(uuid())
+  walletId      String
+  wallet        Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amountCredits Int
+  type          String   // TIP_RECEIVED, BOUNTY_REWARD, PEER_REVIEW_HONORARIUM, CONSULTATION_FEE, WITHDRAWAL, PLATFORM_GRANT
+  status        String   @default("COMPLETED") // COMPLETED, PENDING, REJECTED
+  description   String
+  referenceId   String?
+  senderName    String?
+  createdAt     DateTime @default(now())
+}
+
+model WithdrawalRequest {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountCredits  Int
+  amountFiat     Float
+  currency       String   @default("ETB") // ETB, USD
+  channel        String   // TELEBIRR, CBE_BANK, CHAPA, BANK_WIRE
+  accountNumber  String
+  accountName    String
+  status         String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  fraudRiskScore Int      @default(15) // 0 - 100
+  fraudFlagsJson String?  // JSON flags (e.g. "NEW_ACCOUNT", "UNVERIFIED_EMAIL", "ABNORMAL_VELOCITY")
+  reviewedById   String?
+  reviewNotes    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model ResearchBounty {
+  id                  String    @id @default(uuid())
+  title               String
+  description         String
+  sponsorName         String
+  sponsorLogoUrl      String?
+  rewardCredits       Int
+  rewardFiat          Float
+  currency            String    @default("ETB")
+  status              String    @default("OPEN") // OPEN, AWARDED, CLOSED
+  deadline            DateTime?
+  winnerPublicationId String?
+  createdAt           DateTime  @default(now())
+}
+

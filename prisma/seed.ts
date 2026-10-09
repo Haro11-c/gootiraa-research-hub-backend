@@ -52,6 +52,27 @@ async function main() {
   const passwordHash = await bcrypt.hash('Gootiraa2026Secure!', 10);
 
   // 2. Create Users & Profiles
+  const superAdminUser = await prisma.user.upsert({
+    where: { email: 'superadmin@gootiraa.org' },
+    update: {},
+    create: {
+      email: 'superadmin@gootiraa.org',
+      passwordHash,
+      role: 'SUPER_ADMIN',
+      isVerified: true,
+      profile: {
+        create: {
+          fullName: 'Prof. Yohannes Wolde',
+          academicTitle: 'Supreme Council Chair & Security Oversight',
+          institutionId: aau.id,
+          bio: 'Executive platform overseer and head of research ethics compliance.',
+          verifiedStatus: 'VERIFIED',
+          orcidId: '0000-0001-5521-0011',
+        },
+      },
+    },
+  });
+
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@gootiraa.org' },
     update: {},
@@ -458,6 +479,137 @@ Sustainable funding, localized reagent manufacturing, and compute power for bioi
         { title: 'Genomic Epidemiology of Malaria in East Africa (Nature Genetics)', url: 'https://nature.com' },
       ]),
     },
+  });
+
+  // 6. Wallets, Patronage & Research Impact Credits
+  const walletAlmaz = await prisma.wallet.upsert({
+    where: { userId: researcherAlmaz.id },
+    update: {},
+    create: {
+      userId: researcherAlmaz.id,
+      balanceCredits: 3400,
+      totalEarnedCredits: 4500,
+      totalWithdrawnCredits: 1100,
+      payoutChannel: 'TELEBIRR',
+      payoutAccountNumber: '0911223344',
+      payoutAccountName: 'Dr. Almaz Bekele',
+      transactions: {
+        create: [
+          {
+            amountCredits: 2000,
+            type: 'BOUNTY_REWARD',
+            status: 'COMPLETED',
+            description: 'Horn of Africa Climate Hydrology Grant Reward',
+            senderName: 'Africa CDC Research Fund',
+          },
+          {
+            amountCredits: 1400,
+            type: 'TIP_RECEIVED',
+            status: 'COMPLETED',
+            description: 'Direct scholar patronage tip on Malaria Study',
+            senderName: 'Diaspora Health Consortium',
+          },
+        ],
+      },
+    },
+  });
+
+  const walletTadesse = await prisma.wallet.upsert({
+    where: { userId: researcherTadesse.id },
+    update: {},
+    create: {
+      userId: researcherTadesse.id,
+      balanceCredits: 2200,
+      totalEarnedCredits: 2200,
+      totalWithdrawnCredits: 0,
+      payoutChannel: 'CBE_BANK',
+      payoutAccountNumber: '1000123456789',
+      payoutAccountName: 'Dr. Tadesse Worku',
+      transactions: {
+        create: [
+          {
+            amountCredits: 2200,
+            type: 'BOUNTY_REWARD',
+            status: 'COMPLETED',
+            description: "African NLP Ge'ez Transformer Benchmark Milestone Reward",
+            senderName: 'Ethiopian AI Institute Grant',
+          },
+        ],
+      },
+    },
+  });
+
+  // Seed Withdrawal Requests (One legitimate, one flagged suspicious for Super Admin triage)
+  await prisma.withdrawalRequest.create({
+    data: {
+      userId: researcherAlmaz.id,
+      amountCredits: 1200,
+      amountFiat: 1200,
+      currency: 'ETB',
+      channel: 'TELEBIRR',
+      accountNumber: '0911223344',
+      accountName: 'Dr. Almaz Bekele',
+      status: 'PENDING',
+      fraudRiskScore: 12, // Low risk
+      fraudFlagsJson: JSON.stringify(['VERIFIED_INSTITUTIONAL_FACULTY', 'PEER_REVIEWED_AUTHOR']),
+    },
+  });
+
+  // Dummy user for flagged suspicious withdrawal demo
+  const fraudTestUser = await prisma.user.upsert({
+    where: { email: 'suspicious.actor@tempmail.org' },
+    update: {},
+    create: {
+      email: 'suspicious.actor@tempmail.org',
+      passwordHash,
+      role: 'USER',
+      isVerified: false,
+      profile: {
+        create: {
+          fullName: 'Anon Operator',
+          verifiedStatus: 'UNVERIFIED',
+        },
+      },
+    },
+  });
+
+  await prisma.withdrawalRequest.create({
+    data: {
+      userId: fraudTestUser.id,
+      amountCredits: 5000,
+      amountFiat: 5000,
+      currency: 'ETB',
+      channel: 'TELEBIRR',
+      accountNumber: '0999887766',
+      accountName: 'Unverified Wallet',
+      status: 'PENDING',
+      fraudRiskScore: 78, // High risk!
+      fraudFlagsJson: JSON.stringify(['NEW_ACCOUNT_UNDER_24H', 'ZERO_PUBLISHED_WORKS', 'UNVERIFIED_EMAIL_DOMAIN']),
+    },
+  });
+
+  // Seed Sponsored Research Bounties
+  await prisma.researchBounty.createMany({
+    data: [
+      {
+        title: 'Molecular Surveillance of Antimalarial Drug Resistance in Southwestern Ethiopia',
+        description: 'Provide prospective genomic surveillance and Pfk13 mutation genotyping across Jimma and Gambella transmission corridors.',
+        sponsorName: 'Africa CDC & Ethiopian Public Health Institute',
+        rewardCredits: 50000,
+        rewardFiat: 50000,
+        currency: 'ETB',
+        status: 'OPEN',
+      },
+      {
+        title: 'Fine-Tuning Open Source LLMs on Ge\'ez and Classical Ethiopic Legal Corpora',
+        description: 'Benchmark byte-pair vocabulary boundary models on historical Ethiopian legal decrees and historical manuscripts.',
+        sponsorName: 'Ethiopian Artificial Intelligence Institute',
+        rewardCredits: 35000,
+        rewardFiat: 35000,
+        currency: 'ETB',
+        status: 'OPEN',
+      },
+    ],
   });
 
   console.log('✅ Database seeded successfully with authentic Ethiopian & global academic records!');
