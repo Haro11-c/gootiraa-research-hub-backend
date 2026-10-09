@@ -60,7 +60,7 @@ export const requireRole = (allowedRoles: string[]) => {
       return;
     }
 
-    if (!allowedRoles.includes(req.user.role) && req.user.role !== 'ADMIN') {
+    if (!allowedRoles.includes(req.user.role) && req.user.role !== 'ADMIN' && req.user.role !== 'SUPER_ADMIN') {
       res.status(403).json({
         success: false,
         error: { code: 'FORBIDDEN', message: 'You do not have permission to perform this action.' },

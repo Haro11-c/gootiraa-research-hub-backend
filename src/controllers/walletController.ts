@@ -88,6 +88,31 @@ export class WalletController {
       res.status(500).json({ success: false, error: { code: 'BOUNTIES_ERROR', message: err.message } });
     }
   }
+
+  async createBounty(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const { title, description, sponsorName, sponsorLogoUrl, rewardCredits, rewardFiat, currency, deadline } = req.body;
+      if (!title || !description || !sponsorName || !rewardCredits) {
+        res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Missing required bounty fields.' } });
+        return;
+      }
+
+      const bounty = await walletService.createBounty({
+        title,
+        description,
+        sponsorName,
+        sponsorLogoUrl,
+        rewardCredits: parseInt(rewardCredits, 10),
+        rewardFiat: rewardFiat ? parseFloat(rewardFiat) : undefined,
+        currency,
+        deadline,
+      });
+
+      res.status(201).json({ success: true, data: bounty });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: { code: 'BOUNTY_CREATE_ERROR', message: err.message } });
+    }
+  }
 }
 
 export const walletController = new WalletController();

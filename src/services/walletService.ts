@@ -289,6 +289,34 @@ export class WalletService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * Create research bounty
+   */
+  async createBounty(data: {
+    title: string;
+    description: string;
+    sponsorName: string;
+    sponsorLogoUrl?: string;
+    rewardCredits: number;
+    rewardFiat?: number;
+    currency?: string;
+    deadline?: Date | string;
+  }) {
+    return prisma.researchBounty.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        sponsorName: data.sponsorName,
+        sponsorLogoUrl: data.sponsorLogoUrl,
+        rewardCredits: data.rewardCredits,
+        rewardFiat: data.rewardFiat ?? data.rewardCredits * 1.0,
+        currency: data.currency ?? 'ETB',
+        deadline: data.deadline ? new Date(data.deadline) : null,
+        status: 'OPEN',
+      },
+    });
+  }
 }
 
 export const walletService = new WalletService();
