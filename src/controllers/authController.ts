@@ -198,6 +198,7 @@ export class AuthController {
       include: {
         profile: { include: { institution: true } },
         bookmarks: { select: { publicationId: true } },
+        following: { select: { followingId: true } },
       },
     });
 
@@ -218,6 +219,7 @@ export class AuthController {
         isVerified: user.isVerified,
         profile: user.profile,
         bookmarkedPublicationIds: user.bookmarks.map((b) => b.publicationId),
+        followingIds: user.following.map((f) => f.followingId),
       },
     });
   }
@@ -256,7 +258,13 @@ export class AuthController {
   async getResearcherProfile(req: Request, res: Response): Promise<void> {
     const { id } = req.params;
     const profile = await prisma.userProfile.findFirst({
-      where: { OR: [{ id }, { userId: id }] },
+      where: {
+        OR: [
+          { id },
+          { userId: id },
+          { fullName: id },
+        ],
+      },
       include: {
         institution: true,
         user: {
