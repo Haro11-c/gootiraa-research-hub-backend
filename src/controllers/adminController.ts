@@ -44,10 +44,11 @@ export class AdminController {
 
       const search = req.query.search as string | undefined;
       const role = req.query.role as string | undefined;
+      const verifiedStatus = req.query.verifiedStatus as string | undefined;
       const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 15;
 
-      const result = await adminService.getUsers(search, role, page, limit);
+      const result = await adminService.getUsers(search, role, verifiedStatus, page, limit);
       res.json({ success: true, data: result.users, meta: result.meta });
     } catch (err: any) {
       res.status(500).json({ success: false, error: { code: 'USERS_ERROR', message: err.message } });

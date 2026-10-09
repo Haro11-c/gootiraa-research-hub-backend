@@ -40,13 +40,17 @@ export class AdminService {
     };
   }
 
-  // Super Admin: User and Role Management
-  async getUsers(search?: string, role?: string, page = 1, limit = 15) {
+  // Super Admin & Admin: User and Role Management
+  async getUsers(search?: string, role?: string, verifiedStatus?: string, page = 1, limit = 15) {
     const skip = (page - 1) * limit;
     const where: any = {};
 
     if (role) {
       where.role = role;
+    }
+
+    if (verifiedStatus) {
+      where.profile = { ...(where.profile || {}), verifiedStatus };
     }
 
     if (search && search.trim()) {
@@ -107,22 +111,30 @@ export class AdminService {
     return updated;
   }
 
-  // Super Admin: Verify Researcher Identity (KYC Gate)
+  // Super Admin & Admin: Verify Researcher Identity (KYC Gate)
   async updateUserVerification(adminUserId: string, targetUserId: string, verifiedStatus: 'VERIFIED' | 'UNVERIFIED' | 'PENDING') {
     const profile = await prisma.userProfile.update({
       where: { userId: targetUserId },
       data: { verifiedStatus },
     });
 
+    const userUpdateData: any = { isVerified: verifiedStatus === 'VERIFIED' };
+    if (verifiedStatus === 'VERIFIED') {
+      const currentUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (currentUser && currentUser.role === 'USER') {
+        userUpdateData.role = 'RESEARCHER';
+      }
+    }
+
     await prisma.user.update({
       where: { id: targetUserId },
-      data: { isVerified: verifiedStatus === 'VERIFIED' },
+      data: userUpdateData,
     });
 
     await prisma.auditLog.create({
       data: {
         userId: adminUserId,
-        action: 'SUPERADMIN_VERIFICATION_STATUS',
+        action: 'ADMIN_VERIFICATION_STATUS',
         entityType: 'USER',
         entityId: targetUserId,
         detailsJson: JSON.stringify({ verifiedStatus }),

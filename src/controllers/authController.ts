@@ -16,6 +16,15 @@ const registerSchema = z.object({
   orcidId: z.string().optional(),
 });
 
+const verificationRequestSchema = z.object({
+  academicTitle: z.string().min(2, 'Academic title is required (e.g. Associate Professor, PhD Candidate)'),
+  affiliationName: z.string().min(2, 'Institution affiliation name is required'),
+  department: z.string().optional(),
+  orcidId: z.string().optional(),
+  evidenceNote: z.string().min(5, 'Please provide an institutional page URL or proof description'),
+  website: z.string().optional(),
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -255,6 +264,97 @@ export class AuthController {
       success: true,
       data: profile,
     });
+  }
+
+  async requestVerification(req: AuthRequest, res: Response): Promise<void> {
+    if (!req.user) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Not authenticated.' },
+      });
+      return;
+    }
+
+    try {
+      const validated = verificationRequestSchema.parse(req.body);
+
+      // Handle institution: find existing or create new
+      let institutionId: string | undefined;
+      if (validated.affiliationName) {
+        let inst = await prisma.institution.findFirst({
+          where: { name: { contains: validated.affiliationName } },
+        });
+        if (!inst) {
+          inst = await prisma.institution.create({
+            data: {
+              name: validated.affiliationName,
+              country: 'Ethiopia',
+            },
+          });
+        }
+        institutionId = inst.id;
+      }
+
+      // Upsert profile with PENDING status
+      const profile = await prisma.userProfile.upsert({
+        where: { userId: req.user.id },
+        update: {
+          academicTitle: validated.academicTitle,
+          department: validated.department || null,
+          orcidId: validated.orcidId || null,
+          website: validated.website || null,
+          institutionId: institutionId || undefined,
+          verifiedStatus: 'PENDING',
+        },
+        create: {
+          userId: req.user.id,
+          fullName: req.user.email.split('@')[0],
+          academicTitle: validated.academicTitle,
+          department: validated.department || null,
+          orcidId: validated.orcidId || null,
+          website: validated.website || null,
+          institutionId,
+          verifiedStatus: 'PENDING',
+        },
+        include: { institution: true },
+      });
+
+      // Audit log entry with submitted credentials
+      await prisma.auditLog.create({
+        data: {
+          userId: req.user.id,
+          action: 'USER_VERIFICATION_REQUESTED',
+          entityType: 'USER',
+          entityId: req.user.id,
+          detailsJson: JSON.stringify({
+            academicTitle: validated.academicTitle,
+            affiliationName: validated.affiliationName,
+            department: validated.department,
+            orcidId: validated.orcidId,
+            evidenceNote: validated.evidenceNote,
+            website: validated.website,
+          }),
+        },
+      });
+
+      res.json({
+        success: true,
+        data: profile,
+        message: 'Scholar verification request submitted. Our academic board will review your credentials.',
+      });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: err.errors[0]?.message || 'Invalid input data' },
+        });
+        return;
+      }
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: err.message || 'Failed to submit verification request.' },
+      });
+    }
   }
 
   async getResearcherProfile(req: Request, res: Response): Promise<void> {
