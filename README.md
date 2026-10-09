@@ -41,7 +41,7 @@ You can host this backend on **Render** completely free in under 3 minutes:
    | :--- | :--- | :--- |
    | `NODE_ENV` | `production` | Production mode |
    | `PORT` | `10000` | Render standard port |
-   | `JWT_SECRET` | `GootiraaSuperSecureProductionSecretKey2026!` | 32+ char secret string |
+   | `JWT_SECRET` | `xxxxxxxxxxxxxxxxxxxxx` | 32+ char secret string |
    | `DATABASE_URL` | `file:./dev.db` | Portable SQLite database |
    | `CORS_ORIGINS` | `*` | Or specify your Vercel URL |
 5. Click **Create Web Service**.
@@ -77,14 +77,3 @@ npm run dev
 ```
 
 ---
-
-## 🔑 Demo Access Accounts
-
-All accounts use password: **`Gootiraa2026Secure!`**
-
-| Role | Email | Description |
-| :--- | :--- | :--- |
-| **Super Admin** | `superadmin@gootiraa.org` | Financial payouts, anti-fraud telemetry, user roles |
-| **Moderator / Editor** | `admin@gootiraa.org` | Manuscript approvals, publishing science news & fact-checks |
-| **Senior Scholar** | `almaz.bekele@aau.edu.et` | Dr. Almaz Bekele (AAU) — Top 1% Ranked Researcher |
-| **Active Scholar** | `harouturakerro@gmail.com` | Haro Utura — Research contributor & impact wallet |
